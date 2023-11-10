@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "XP_止盈功能修改,挂单功能修改"
 #property link      "https://www.mql5.com"
-#property version   "4.00"
+#property version   "4.01"
 #property script_show_inputs
 //+------------------------------------------------------------------+
 //| Script program start function                                    |
