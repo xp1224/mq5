@@ -5,35 +5,35 @@
 //+------------------------------------------------------------------+
 #property copyright "xp"
 #property link      "https://www.mql5.com"
-#property version   "1.00" 
-#property indicator_chart_window
-#property script_show_inputs
+#property version   "1.00"
+//1.0：显示入场，止损，和手数
+//2.0: 新增止损距离、帐户止损金额止损比例。
+#property indicator_chart_window // 表示指标将在图表窗口上绘制
+#property script_show_inputs    // 显示指标设置对话框
 
+// 定义指标绘图
 #property indicator_label1 "Plot 1"
 #property indicator_type1 DRAW_LINE
 #property indicator_color1 clrBlue
 #property indicator_style1 STYLE_SOLID
 #property indicator_width1 2
 
-enum ENUM_POS_TL
-{
-   FOLLOW_PRICE,
-   FIXED_POSITION
-};
-
+// 定义指标属性
 input string target_object_name = "1";
-input color font_color = clrWhite;
-input color  LabelColor = clrOrangeRed;
-input ENUM_POS_TL LabelPosition = FIXED_POSITION;
-input double stop_loss_amount = 50.0;
-input double risk_percentage = 5;
-
+input color font_color = clrWhite; // 新增字体颜色设置
+input double stop_loss_amount = 50.0; // 新增止损金额设置
+input double risk_percentage = 5; // 帐户百分比
+// 用于存储之前的价格水平信息
 double previousS1 = 0.0;
 double previousS2 = 0.0;
 
+// 新增一个标签，显示账户余额的百分比
+int accountBalanceLabel;
+int stopLossPipsLabel;
 
-
-
+//+------------------------------------------------------------------+
+//| 指标计算函数                                                     |
+//+------------------------------------------------------------------+
 int OnCalculate(const int rates_total,
                 const int prev_calculated,
                 const datetime &time[],
@@ -44,76 +44,90 @@ int OnCalculate(const int rates_total,
                 const long &tick_volume[],
                 const long &volume[],
                 const int &spread[])
-{
+  {
+   // 计算逻辑放在这里
 
-// 获取当前柱的时间和收盘价
-   double close_price = close[0];
-   
-   
-   
-    double s1 = ObjectGetDouble(0, target_object_name, OBJPROP_PRICE, 0);
-    double s2 = ObjectGetDouble(0, target_object_name, OBJPROP_PRICE, 1);
+   // 获取目标 Fibonacci 对象的价格水平
+   double s1 = ObjectGetDouble(0, target_object_name, OBJPROP_PRICE, 0);
+   double s2 = ObjectGetDouble(0, target_object_name, OBJPROP_PRICE, 1);
 
-    Print("FIO名称为 ", target_object_name, " 的价格水平 100：", s1);
+   // 计算手数
+   double stop_loss_pips = MathAbs(s1 - s2); // 止损距离，以点为单位
+  
+   double margin_required = SymbolInfoDouble(_Symbol, SYMBOL_MARGIN_INITIAL); // 一个标准手的保证金要求
+   double one_lot_value = margin_required; // 一个标准手的价值
+   double lots = stop_loss_amount / stop_loss_pips * _Point;
+   
+   // 计算实际的止损金额
+    double actual_stop_loss_amount = lots * stop_loss_pips / _Point;
+   //Print("实际止损金额：", DoubleToString(actual_stop_loss_amount, _Digits));
+
+   // 获取图表的宽度和高度
+   int chartWidth = ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
+   int chartHeight = ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
+
+   // 设置文本标签的 X 和 Y 距离，使其右下角对齐
+   int labelWidth = 300;  // 你的文本标签宽度
+   int labelHeight = 30;  // 你的文本标签高度
+
+   // 打印手数到控制台||打印价格水平到控制台
+   /*  Print("FIO名称为 ", target_object_name, " 的价格水平 100：", s1);
     Print("FIO名称为 ", target_object_name, " 的价格水平 0：", s2);
-
-    double stop_loss_pips = MathAbs(s1 - s2);
-    double risk_amount = risk_percentage / 100.0 * AccountInfoDouble(ACCOUNT_BALANCE);
-    double margin_required = SymbolInfoDouble(_Symbol, SYMBOL_MARGIN_INITIAL);
-    double one_lot_value = margin_required;
-    double lots = risk_amount / (stop_loss_pips * one_lot_value);
-
-    Print("计算的手数：", DoubleToString(lots, 2)); 
+    Print("计算的手数：", DoubleToString(lots, _Digits));
     Print("止损距离：", DoubleToString(stop_loss_pips, _Digits));
     Print("账户余额的百分比：", risk_amount);
     Print("一个标准手的保证金要求：", margin_required);
-    
-    string Text = "入场:" + DoubleToString(s1, _Digits) + "\n止损:" + DoubleToString(s2, _Digits) + "\n手数:" + DoubleToString(lots, 2);
+   */
 
-    if (s1 != previousS1 || s2 != previousS2)
-    {
-        ObjectDelete(0, "TextLabel");
+   // 只有在价格水平发生变化时才更新图表标签
+   if (s1 != previousS1 || s2 != previousS2)
+     {
+      // 删除之前的文本对象
+      ObjectDelete(0, "TextLabel");
+      ObjectDelete(0, "AccountBalanceLabel");
+      ObjectDelete(0, "StopLossPipsLabel");
 
-        if (LabelPosition == FOLLOW_PRICE)
-        {
-            if (ObjectFind(0, "TextLabel") != 0)
-            {
-                ObjectCreate(0, "TextLabel", OBJ_TEXT, 0, time, close_price + _Point);                
-                ObjectSetInteger(0, "TextLabel", OBJPROP_COLOR, font_color);
-                ObjectSetString(0, "TextLabel", OBJPROP_FONT, "Arial");
-                ObjectSetInteger(0, "TextLabel", OBJPROP_COLOR, LabelColor);
-                ObjectSetInteger(0, "TextLabel", OBJPROP_SELECTABLE, false);
-                ObjectSetInteger(0, "TextLabel", OBJPROP_FONTSIZE, 12);
-            }
-             else
-      {
-            ObjectSetString(0, "TextLabel", OBJPROP_TEXT, Text);
-       
-            ObjectMove(0, "TextLabel", 0, time, close_price + _Point);
-        }
-        }
-        else if (LabelPosition == FIXED_POSITION)
-        {
-            if (ObjectFind(0, "TextLabel") != 0)
-            {
-                int label = ObjectCreate(0, "TextLabel", OBJ_LABEL, 0, 0, 0);
-                ObjectSetInteger(0, "TextLabel", OBJPROP_ANCHOR, ANCHOR_RIGHT_UPPER);
-                ObjectSetInteger(0, "TextLabel", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
-                ObjectSetInteger(0, "TextLabel", OBJPROP_XDISTANCE, 200);
-                ObjectSetInteger(0, "TextLabel", OBJPROP_YDISTANCE, 2);
-                ObjectSetString(0, "TextLabel", OBJPROP_TEXT, Text);
-                ObjectSetString(0, "TextLabel", OBJPROP_FONT, "Arial");
-                ObjectSetInteger(0, "TextLabel", OBJPROP_COLOR, LabelColor);
-                ObjectSetInteger(0, "TextLabel", OBJPROP_SELECTABLE, true);
-                ObjectSetInteger(0, "TextLabel", OBJPROP_FONTSIZE, 12);
-            }
-            else
-                ObjectSetString(0, "TextLabel", OBJPROP_TEXT, Text);
-        }
+      // 在图表右下角创建文本对象
+      int label = ObjectCreate(0, "TextLabel", OBJ_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, "TextLabel", OBJPROP_XDISTANCE, chartWidth - labelWidth);
+      ObjectSetInteger(0, "TextLabel", OBJPROP_YDISTANCE, chartHeight - labelHeight);
+      ObjectSetString(0, "TextLabel", OBJPROP_FONT, "Arial");
+      ObjectSetInteger(0, "TextLabel", OBJPROP_COLOR, font_color);
+      ObjectSetInteger(0, "TextLabel", OBJPROP_WIDTH, 12);
 
-        previousS1 = s1;
-        previousS2 = s2;
-    }
+      // 在多行文本中添加价格水平信息和计算的手数
+      string labelText = "入场:" + DoubleToString(s1, _Digits) + "\n止损:" + DoubleToString(s2, _Digits) + "\n手数:" + DoubleToString(lots, 2);
+      ObjectSetString(0, "TextLabel", OBJPROP_TEXT, labelText);
 
-    return(rates_total);
+      // 创建新的文本对象，用于显示账户余额百分比
+      accountBalanceLabel = ObjectCreate(0, "AccountBalanceLabel", OBJ_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, "AccountBalanceLabel", OBJPROP_XDISTANCE, chartWidth - labelWidth);
+      ObjectSetInteger(0, "AccountBalanceLabel", OBJPROP_YDISTANCE, chartHeight - labelHeight - 30); // 调整Y位置
+      ObjectSetString(0, "AccountBalanceLabel", OBJPROP_FONT, "Arial");
+      ObjectSetInteger(0, "AccountBalanceLabel", OBJPROP_COLOR, font_color); // 根据您的喜好设置颜色
+      ObjectSetInteger(0, "AccountBalanceLabel", OBJPROP_WIDTH, 12);
+
+      // 在文本中添加账户余额百分比信息
+      double accountPercentage = risk_percentage / 100.0 * AccountInfoDouble(ACCOUNT_BALANCE); // 风险金额为账户余额的百分比
+      string accountBalanceText = "帐户止损金额5%: " + DoubleToString(accountPercentage, 2) + "USD";
+      ObjectSetString(0, "AccountBalanceLabel", OBJPROP_TEXT, accountBalanceText);
+
+      // 创建新的文本对象，用于显示止损距离
+      stopLossPipsLabel = ObjectCreate(0, "StopLossPipsLabel", OBJ_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, "StopLossPipsLabel", OBJPROP_XDISTANCE, chartWidth - labelWidth);
+      ObjectSetInteger(0, "StopLossPipsLabel", OBJPROP_YDISTANCE, chartHeight - labelHeight - 60); // 调整Y位置
+      ObjectSetString(0, "StopLossPipsLabel", OBJPROP_FONT, "Arial");
+      ObjectSetInteger(0, "StopLossPipsLabel", OBJPROP_COLOR, font_color); 
+      ObjectSetInteger(0, "StopLossPipsLabel", OBJPROP_WIDTH, 12);
+
+      // 在文本中添加止损距离信息
+      string stopLossPipsText = "止损距离: " + DoubleToString(stop_loss_pips, 2) + " pips" + "实际止损金额: " + DoubleToString(actual_stop_loss_amount, _Digits);
+      ObjectSetString(0, "StopLossPipsLabel", OBJPROP_TEXT, stopLossPipsText);
+
+      // 更新之前的价格水平信息
+      previousS1 = s1;
+      previousS2 = s2;
+     }
+
+   return(rates_total);
 }
