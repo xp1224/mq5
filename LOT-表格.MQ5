@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "xp"
 #property link      "https://www.mql5.com"
-#property version   "1.00"
+#property version   "2.00"
 
 #property indicator_chart_window
 #property script_show_inputs
@@ -16,7 +16,9 @@ input double stop_loss_amount = 50.0;
 input double risk_percentage = 5;
 input int cell_width = 150; // 单元格宽度
 input int cell_height = 30; // 单元格高度
-input int font_size = 10; // 字体大小
+input int font_size = 12; // 字体大小
+input int table_x = 10; // 表格 X 坐标
+input int table_y = 10; // 表格 Y 坐标
 
 // 定义指标属性
 double previousS1 = 0.0;
@@ -51,6 +53,10 @@ int OnCalculate(const int rates_total,
   
    double accountPercentage = risk_percentage / 100.0 * AccountInfoDouble(ACCOUNT_BALANCE); // 风险金额为账户余额的百分比
 
+   // 删除之前的对象
+   for (int i = 0; i < 8; i++)
+      ObjectDelete(0, "TableCell" + IntegerToString(i));
+
    // 获取图表的宽度和高度
    int chartWidth = ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
    int chartHeight = ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
@@ -59,20 +65,16 @@ int OnCalculate(const int rates_total,
    int rows = 4;
    int cols = 2;
 
-   // 计算表格的起始位置
-   int startX = chartWidth - cell_width * cols;
-   int startY = chartHeight - 300; // 您可以根据需要调整表格的位置
-
-   // 删除之前的对象
-   for (int i = 0; i < rows * cols; i++)
-      ObjectDelete(0, "TableCell" + IntegerToString(i));
+   // 计算表格的起始位置（右下角）
+   int startX = chartWidth - cell_width * cols - table_x;
+   int startY = chartHeight - cell_height * rows - table_y;
 
    // 绘制表格
    for (int row = 0; row < rows; row++)
    {
       for (int col = 0; col < cols; col++)
       {
-         int cellIndex = row * cols + col;
+         int cellIndex = row * 2 + col;
          string cellText = "";
 
          // 设置单元格文本内容
@@ -98,13 +100,13 @@ int OnCalculate(const int rates_total,
          // 创建单元格
          int cell = ObjectCreate(0, "TableCell" + IntegerToString(cellIndex), OBJ_LABEL, 0, 0, 0);
          ObjectSetInteger(0, "TableCell" + IntegerToString(cellIndex), OBJPROP_XDISTANCE, startX + col * cell_width);
-         ObjectSetInteger(0, "TableCell" + IntegerToString(cellIndex), OBJPROP_YDISTANCE, startY + row * cell_height); // 调整单元格的垂直间距
+         ObjectSetInteger(0, "TableCell" + IntegerToString(cellIndex), OBJPROP_YDISTANCE, startY + row * cell_height);
          ObjectSetInteger(0, "TableCell" + IntegerToString(cellIndex), OBJPROP_WIDTH, cell_width);
          ObjectSetInteger(0, "TableCell" + IntegerToString(cellIndex), OBJPROP_YSIZE, cell_height); // 设置单元格高度
          ObjectSetString(0, "TableCell" + IntegerToString(cellIndex), OBJPROP_TEXT, cellText);
          ObjectSetString(0, "TableCell" + IntegerToString(cellIndex), OBJPROP_FONT, "Arial");
-         ObjectSetInteger(0, "TableCell" + IntegerToString(cellIndex), OBJPROP_COLOR, font_color); // 将字体颜色设置为用户输入的颜色 // 将字体颜色设置为黑色
-         ObjectSetInteger(0, "TableCell" + IntegerToString(cellIndex), OBJPROP_FONTSIZE, font_size); // 设置字体大小
+         ObjectSetInteger(0, "TableCell" + IntegerToString(cellIndex), OBJPROP_COLOR, font_color);
+         ObjectSetInteger(0, "TableCell" + IntegerToString(cellIndex), OBJPROP_FONTSIZE, font_size);
       }
    }
 
